@@ -39,7 +39,7 @@ public class Autosaver {
         System.out.println("Saving up to " + maxSaveCount + " autosaves");
         System.out.println();
 
-        // initialize saveCount by searching for existing autosave files (not all that useful since it doesn't look at modified date)
+        // initialize saveCount by searching for last modified autosave file
         initializeSaveCount();
 
         // make sure outputFolder exists

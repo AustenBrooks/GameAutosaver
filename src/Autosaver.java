@@ -1,21 +1,22 @@
 import java.io.*;
 import java.time.LocalDateTime;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
+
 
 public class Autosaver {
     private static String inputFolder = null;
-    private static String inputFileName = "savefile.sav";
+    private static String inputFiles = "savefile.sav";
+    private static List<String> inputFilesList = new ArrayList<>();
     private static String outputFolder = "C:/GameSaves/";
     private static int saveCount = 0;
     private static int maxSaveCount = 10;
     private static int autoSaveInterval = 15;
 
-
     public static void main(String[] args) throws Exception {
         // load input from jar arguments
         inputFolder = args[0];
-        inputFileName = args[1];
+        inputFiles = args[1];
+        inputFilesList.addAll(Arrays.asList(inputFiles.split(";")));
         if (args.length > 2)
             outputFolder = args[2];
         if (args.length > 3)
@@ -52,12 +53,12 @@ public class Autosaver {
 
     private static void initializeSaveCount() {
         File folder = new File(outputFolder);
-        File[] files = folder.listFiles((dir, name) -> name.matches("autosave\\d"));
+        File[] files = folder.listFiles(File::isDirectory);
         if (files != null) {
             long maxLastModifiedTime = Long.MIN_VALUE;
             String lastModifiedFileName = null;
             for (File file : files) {
-                if (file.isFile() && file.lastModified() > maxLastModifiedTime) {
+                if (file.lastModified() > maxLastModifiedTime) {
                     maxLastModifiedTime = file.lastModified();
                     lastModifiedFileName = file.getName();
                 }
@@ -67,13 +68,13 @@ public class Autosaver {
         }
     }
 
-    private static void createOutputFolder(String folderPath) throws Exception {
+    public static void createOutputFolder(String folderPath) throws Exception {
         File folder = new File(folderPath);
 
         if (folder.exists()) {
-            System.out.println(folderPath + " already exists.");
+            folder.setLastModified(System.currentTimeMillis());
         }
-        else {
+        else{
             if (folder.mkdir())
                 System.out.println(folderPath + " created successfully.");
             else
@@ -86,26 +87,31 @@ public class Autosaver {
             if (saveCount >= maxSaveCount){
                 saveCount = 0;
             }
+            try {
+                createOutputFolder(outputFolder + "autosave" + saveCount + "/");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            for (String inputFileName : inputFilesList) {
+                File input = new File(inputFolder + inputFileName);
+                String autosaveFileName = outputFolder + "/autosave" + saveCount + "/" + inputFileName;
+                File output = new File(autosaveFileName);
 
-            File input = new File(inputFolder + inputFileName);
-            String autosaveFileName = outputFolder + "autosave" + saveCount;
-            File output = new File(autosaveFileName);
+                try (FileInputStream fis = new FileInputStream(input);
+                     FileOutputStream fos = new FileOutputStream(output)) {
+                    byte[] buffer = new byte[1024];
+                    int bytesRead;
+                    while ((bytesRead = fis.read(buffer)) != -1) {
+                        fos.write(buffer, 0, bytesRead);
+                    }
+                    System.out.println(autosaveFileName + " created successfully at " + LocalDateTime.now());
 
-            try (FileInputStream fis = new FileInputStream(input);
-                 FileOutputStream fos = new FileOutputStream(output)) {
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = fis.read(buffer)) != -1) {
-                    fos.write(buffer, 0, bytesRead);
+
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-                System.out.println(autosaveFileName + " created successfully at " + LocalDateTime.now());
-                saveCount++;
-
-
             }
-            catch (IOException e) {
-                e.printStackTrace();
-            }
+            saveCount++;
         }
     }
 }
